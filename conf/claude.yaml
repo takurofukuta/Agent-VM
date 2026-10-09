@@ -35,10 +35,19 @@ scripts:
     mkdir -p /opt/agent-vm/seed
     printf '{\n  "env": {\n    "DISABLE_UPDATES": "1"\n  }\n}\n' > /opt/agent-vm/seed/settings.json
 
+    # Claude Code はアカウント情報を ~/.claude.json に置きます。共有ボリュームの
+    # 外にあるため、シンボリックリンクでボリューム内のファイルを指すようにします。
+    # これがないと、VM ごとにサインインを求められます。
     printf '%s\n' \
       '#!/bin/sh' \
       'mkdir -p /root/.claude' \
       '[ -f /root/.claude/settings.json ] || cp /opt/agent-vm/seed/settings.json /root/.claude/settings.json' \
+      '[ -L /root/.claude.json ] || {' \
+      '  [ -f /root/.claude.json ] && [ ! -f /root/.claude/claude.json ] &&' \
+      '    cp /root/.claude.json /root/.claude/claude.json' \
+      '  rm -f /root/.claude.json' \
+      '  ln -s /root/.claude/claude.json /root/.claude.json' \
+      '}' \
       'exec claude "$@"' \
       > /usr/local/bin/agent-start
     chmod +x /usr/local/bin/agent-start
