@@ -1,0 +1,30 @@
+# Codex — https://developers.openai.com/codex/cli
+#
+# 配置先: ~/.agent-vm/conf/codex.yaml
+# 起動:   agent-vm codex
+#
+# agent-vm: auth-dir=/root/.codex
+#   認証情報と会話履歴の保存先。ここに名前付きボリュームがマウントされ、
+#   すべての VM で共有されます。実際の保存先が異なる場合は書き換えてください。
+
+image: "node:24-bookworm-slim"
+cpus: 2
+memory: "2G"
+
+# network:
+#   allow:
+#     - "api.openai.com"
+#     - "registry.npmjs.org"
+
+scripts:
+  # 雛形の作成時に実行されます。対話操作はありません。
+  setup: |
+    apt-get update
+    apt-get install -y --no-install-recommends ca-certificates git
+    npm install -g @openai/codex@0.148.0
+
+    printf '%s\n' \
+      '#!/bin/sh' \
+      'exec codex "$@"' \
+      > /usr/local/bin/agent-start
+    chmod +x /usr/local/bin/agent-start

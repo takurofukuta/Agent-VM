@@ -1,0 +1,44 @@
+# Claude Code — https://code.claude.com/docs
+#
+# 配置先: ~/.agent-vm/conf/claude.yaml
+# 起動:   agent-vm claude
+#
+# agent-vm: auth-dir=/root/.claude
+#   認証情報と会話履歴の保存先。ここに名前付きボリュームがマウントされ、
+#   すべての VM で共有されます。
+
+image: "node:24-bookworm-slim"
+cpus: 2
+memory: "4G"
+
+# VM から接続できるホストを限定する場合は network.allow を追加します。
+# 絞りすぎると npm install や認証トークンの更新が失敗するため、
+# 動作を確認しながら段階的に追加してください。
+#
+# network:
+#   allow:
+#     - "api.anthropic.com"
+#     - "registry.npmjs.org"
+
+scripts:
+  # 雛形の作成時に実行されます。対話操作はありません。
+  setup: |
+    apt-get update
+    apt-get install -y --no-install-recommends ca-certificates git
+    npm install -g @anthropic-ai/claude-code@2.1.235
+
+    # 初期設定の雛形。auth-dir はボリュームで上書きされるため、
+    # 別の場所に置いて agent-start から初回だけコピーします。
+    #
+    # DISABLE_UPDATES: 自動アップデートの無効化。VM 停止で更新が中断されると
+    # claude のシンボリックリンクが壊れるため。バージョンは上で固定しています。
+    mkdir -p /opt/agent-vm/seed
+    printf '{\n  "env": {\n    "DISABLE_UPDATES": "1"\n  }\n}\n' > /opt/agent-vm/seed/settings.json
+
+    printf '%s\n' \
+      '#!/bin/sh' \
+      'mkdir -p /root/.claude' \
+      '[ -f /root/.claude/settings.json ] || cp /opt/agent-vm/seed/settings.json /root/.claude/settings.json' \
+      'exec claude "$@"' \
+      > /usr/local/bin/agent-start
+    chmod +x /usr/local/bin/agent-start
